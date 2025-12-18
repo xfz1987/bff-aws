@@ -1,24 +1,3 @@
-### pm2 配置
-
-```js
-// ecosystem.config.js
-// pm2 init
-```
-
-```json
-// 不用这种了
-{
-  "name": "xfzapp", //项目名字
-  //max_memory_restart: "300M",//设置node单个进程可占用最大的内存，如果内存使用率超过300M，pm2自动重启该进程
-  "script": "app.ts", //node主入口文件
-  "out_file": "logs/pm2/out.log",
-  "error_file": "logs/pm2/error.log",
-  "instances": "1", //让node程序占满你的cpu，发挥cpu最大的功效
-  "exec_mode": "cluster", //以主进程的方式启动
-  "watch": true //热启动
-}
-```
-
 ### prisma
 
 ```bash
