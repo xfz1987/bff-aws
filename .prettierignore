@@ -1,0 +1,32 @@
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+build
+coverage
+docs/jest-stare
+docs/jest-coverage
+
+# Cache
+.cache
+.next
+*.log
+
+# Generated files
+*.min.js
+*.bundle.js
+
+# Public assets
+public
+
+# Other
+geckodriver
+yarn.lock
+package-lock.json
+
+# 明确排除所有 JS 和 TS 文件，让 Biome 接管它们
+**/*.js
+**/*.jsx
+**/*.ts
+**/*.tsx

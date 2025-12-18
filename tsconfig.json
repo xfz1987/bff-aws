@@ -1,0 +1,27 @@
+{
+	"compilerOptions": {
+		"target": "ES2024", // 目标ECMAScript版本
+		"noImplicitAny": true,
+		"noImplicitThis": true,
+		"module": "nodenext", // 或ESNext, 取决于你的Node.js版本和模块化需求
+		"moduleResolution": "nodenext",
+		"allowSyntheticDefaultImports": true,
+		"typeRoots": ["typings"],
+		"baseUrl": "./",
+		"outDir": "./dist", // 编译后的文件输出目录
+		"esModuleInterop": true, // 允许ES模块和CommonJS模块互操作
+		"skipLibCheck": true, // 忽略声明文件检查
+		"experimentalDecorators": true, // 如果使用装饰器（如Koa-Router的装饰器）需要开启
+		"emitDecoratorMetadata": true, // 配合装饰器使用
+		"paths": {
+			"@interfaces/*": ["interface/*"],
+			"@routers/*": ["routers/*"],
+			"@services/*": ["services/*"],
+			"@config/*": ["config/*"],
+			"@views/*": ["views/*"],
+			"@middlewares/*": ["middlewares/*"]
+		}
+	},
+	"include": ["**/*.ts"], // 包含 src 目录下的所有TS文件
+	"exclude": ["node_modules", "dist"] // 排除 node_modules 和 dist 目录
+}

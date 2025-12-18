@@ -1,0 +1,141 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: A simple SAM template for a serverless application.
+
+# 全局配置
+Globals:
+  Function:
+    # 函数超时时间（秒）
+    Timeout: 30
+    # 函数内存（MB）
+    MemorySize: 1024
+    # 函数运行时环境
+    Runtime: nodejs20.x
+    # 函数运行架构
+    Architectures: ['arm64']
+    # 启用源码映射
+    Environment:
+      Variables:
+        NODE_OPTIONS: '--enable-source-maps'
+    # 临时存储空间（MB）
+    EphemeralStorage:
+      Size: 512
+  # API 网关配置
+  Api:
+    # OpenAPI 版本
+    OpenApiVersion: '2.0'
+    # CORS 配置
+    Cors:
+      # 允许所有请求方法
+      AllowMethods: "'*'"
+      # 允许的请求头
+      AllowHeaders: "'Content-Type,Authorization'"
+      # 允许所有来源
+      AllowOrigin: "'*'"
+      # CORS 缓存有效期（秒）
+      MaxAge: 600
+# 资源配置
+Resources:
+  # 依赖层
+  NodeModulesLayer:
+    # 资源类型（层版本）
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      # 层名称，可自定义
+      LayerName: nest-dependencies
+      # 层描述
+      Description: Node modules for Nest.js application
+      # 层内容路径，对应根目录的 layer 目录
+      ContentUri: layer/
+      # 兼容的运行时环境
+      CompatibleRuntimes:
+        - nodejs20.x
+      # 部署后保留该层
+      RetentionPolicy: Retain
+
+  # 定义API网关资源（Serverless Api类型）
+  Api:
+    # 资源类型：AWS Serverless API网关
+    Type: AWS::Serverless::Api
+    Properties:
+      # API网关的部署阶段名称（dev表示开发环境、test、prod）
+      StageName: dev
+      # 配置API网关支持的二进制媒体类型，用于处理图片和表单文件上传
+      BinaryMediaTypes:
+        # 支持所有图片格式（如png、jpg、jpeg等）
+        - 'image/*'
+        # 支持表单文件上传的格式
+        - 'multipart/form-data'
+      # 配置API网关的认证策略
+      Auth:
+        # 默认关闭认证授权（生产环境建议根据需求配置认证器，如Cognito、JWT）
+        DefaultAuthorizer: NONE
+
+  # 定义Lambda函数资源（名称可以自定义，是业务逻辑运行载体，Koa框架的服务函数,入口文件）
+  KoaFunction:
+    # 资源类型：AWS Serverless Lambda函数
+    Type: AWS::Serverless::Function
+    Metadata:
+      # 跳过SAM的自动构建流程（因为代码已提前编译到dist目录）
+      SkipBuild: true
+    Properties:
+      # Lambda函数的入口：dist目录下的lambda.js文件中的handler函数
+      Handler: lambda.handler
+      # 函数代码的存放路径（已编译后的Koa应用代码）
+      CodeUri: ./dist
+      # Lambda函数分配的内存大小（3008MB是AWS Lambda的较高配置，适合处理高负载请求）
+      MemorySize: 3008
+      # Lambda函数的超时时间（30秒，达到该时间函数会被强制终止）
+      Timeout: 30
+      # 关联的Lambda层（用于存放Node.js依赖包，避免将依赖包打包到函数代码中）
+      Layers:
+        # 引用上面定义的NodeModulesLayer层资源
+        - !Ref NodeModulesLayer
+      # 配置Lambda函数的权限策略
+      Policies:
+        # S3桶
+        - S3CrudPolicy:
+            BucketName: mina-community-assets
+        # 授予Lambda函数访问VPC的权限（如果函数需要访问私有网络内的资源则需要配置，如 RDS 数据库、ElastiCache 缓存），必须配置这个权限，否则函数无法访问 VPC 资源）
+        - VPCAccessPolicy: {}
+      VpcConfig:
+        # Default security group
+        SecurityGroupIds:
+          - sg-00f3918b436600a44
+        SubnetIds:
+          - subnet-094a08e21276709af
+          - subnet-07317a46e9534e665
+          - subnet-0a09a30458eb9250d
+      # 配置Lambda函数的触发事件
+      Events:
+        # 事件名称：ApiEvent（自定义名称，便于识别，方便在模板中区分多个触发事件（比如还可以有 S3 上传触发、SQS 消息触发等））
+        ApiEvent:
+          # 事件类型：API网关触发
+          Type: Api
+          Properties:
+            # 匹配所有路径（{proxy+}是通配符，代表所有子路径，路径匹配规则为 “全路径匹配”）
+            Path: /{proxy+}
+            # 匹配所有HTTP方法（GET、POST、PUT、DELETE等）
+            Method: ANY
+            # 关联上面定义的Api网关资源
+            RestApiId: !Ref Api
+            Auth:
+              # 该API路径关闭认证（覆盖默认认证策略）
+              Authorizer: NONE
+      # 自动发布函数版本并创建别名live（开启后，每次部署函数都会自动创建一个新版本，并将live别名指向该版本，方便后续进行版本回滚或蓝绿部署）
+      AutoPublishAlias: live
+
+# 定义输出项（部署后显示的关键信息）
+Outputs:
+  # 输出项名称：API网关的访问地址
+  ApiEndpoint:
+    # 输出项描述
+    Description: API Gateway endpoint URL
+    # 拼接API网关的访问URL：https://{ApiId}.execute-api.{区域}.amazonaws.com/dev
+    Value: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/dev'
+  # 输出项名称：Lambda函数的ARN（亚马逊资源名称）
+  FunctionArn:
+    # 输出项描述
+    Description: Lambda Function ARN
+    # 获取KoaFunction函数的ARN属性，对应上面的KoaFunction资源（常用于配置权限（如允许其他服务调用该 Lambda））
+    Value: !GetAtt KoaFunction.Arn
